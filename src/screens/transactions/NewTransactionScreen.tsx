@@ -53,8 +53,12 @@ const SelectField: React.FC<SelectFieldProps> = ({ label, value, options, onSele
         }
       >
         {options.map(([k, v]) => (
-          <Menu.Item key={k} onPress={() => { onSelect(k); setVisible(false); }} title={v}
-            titleStyle={{ color: value === k ? Colors.navy : Colors.textPrimary }} />
+          <Menu.Item 
+            key={k} 
+            onPress={() => { onSelect(k); setVisible(false); }} 
+            title={v}
+            titleStyle={{ color: value === k ? Colors.navy : Colors.textPrimary }} 
+          />
         ))}
       </Menu>
     </View>
@@ -89,8 +93,8 @@ export const NewTransactionScreen: React.FC = () => {
     date: new Date().toISOString().split('T')[0],
     payment_method: 'pix',
     status: 'pago',
-    category_id: '',
-    project_id: route.params?.project_id || '',
+    category: 'Geral', // Guardamos o nome do texto diretamente alinhado à store
+    project_id: route.params?.project_id ? String(route.params.project_id) : '',
     notes: '',
   });
 
@@ -108,7 +112,7 @@ export const NewTransactionScreen: React.FC = () => {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.amount || isNaN(parseFloat(form.amount))) e.amount = 'Informe o valor.';
+    if (!form.amount || isNaN(parseFloat(form.amount.replace(',', '.')))) e.amount = 'Informe o valor.';
     if (!form.description.trim()) e.description = 'Descrição é obrigatória.';
     if (!form.date) e.date = 'Informe a data.';
     setErrors(e);
@@ -120,24 +124,29 @@ export const NewTransactionScreen: React.FC = () => {
     setLoading(true);
     try {
       const payload = {
-        ...form,
+        type: form.type,
         amount: parseFloat(form.amount.replace(',', '.')),
-        category_id: form.category_id || undefined,
+        description: form.description,
+        date: form.date,
+        payment_method: form.payment_method,
+        status: form.status,
+        category: form.category || 'Geral',
         project_id: form.project_id || undefined,
         notes: form.notes || undefined,
       };
+      
       await create(payload);
       refreshDashboard();
       navigation.goBack();
     } catch (err: any) {
-      Alert.alert('Erro', err?.response?.data?.message || 'Não foi possível registrar a transação.');
+      Alert.alert('Erro', err?.message || 'Não foi possível registrar a transação.');
     } finally {
       setLoading(false);
     }
   };
 
   const filteredCategories = categories.filter((c) => c.type === form.type);
-  const categoryOptions: [string, string][] = [['', 'Sem categoria'], ...filteredCategories.map((c) => [c.id, c.name] as [string, string])];
+  const categoryOptions: [string, string][] = [['Geral', 'Geral'], ...filteredCategories.map((c) => [c.name, c.name] as [string, string])];
   const projectOptions: [string, string][] = [['', 'Nenhuma obra'], ...projects.map((p) => [p.id, p.name] as [string, string])];
 
   return (
@@ -206,7 +215,7 @@ export const NewTransactionScreen: React.FC = () => {
 
           <SelectField label="Forma de Pagamento" value={form.payment_method} options={PAYMENT_METHODS} onSelect={(v) => set('payment_method', v)} />
           <SelectField label="Status" value={form.status} options={STATUS_OPTIONS} onSelect={(v) => set('status', v)} />
-          <SelectField label="Categoria" value={form.category_id} options={categoryOptions} onSelect={(v) => set('category_id', v)} placeholder="Sem categoria" />
+          <SelectField label="Categoria" value={form.category} options={categoryOptions} onSelect={(v) => set('category', v)} placeholder="Geral" />
           <SelectField label="Obra" value={form.project_id} options={projectOptions} onSelect={(v) => set('project_id', v)} placeholder="Nenhuma obra" />
 
           <DFInput

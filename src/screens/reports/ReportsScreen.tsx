@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -11,51 +11,93 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import { DFText, DFCard } from '../../components/common';
 import { Colors, Spacing, Radius } from '../../theme';
-import { reportService } from '../../services/api';
 import { formatCurrency } from '../../utils/format';
-import { CashflowItem } from '../../types';
-import { MOCK_CASHFLOW } from '../../utils/mockData';
-import { storage } from '../../utils/storage';
+import { useTransactionStore } from '../../store';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CHART_WIDTH = SCREEN_WIDTH - Spacing.lg * 2 - Spacing.md * 2;
 
 export const ReportsScreen: React.FC = () => {
-  const [cashflow, setCashflow] = useState<CashflowItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [categoryData, setCategoryData] = useState<any[]>([]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const token = await storage.getItem('df_token');
-      if (token === 'mock-token') {
-        setCashflow(MOCK_CASHFLOW);
-        setCategoryData([
-          { category: { name: 'Mão de Obra', color: '#f97316' }, total: '17200', count: 4 },
-          { category: { name: 'Material de Construção', color: '#ef4444' }, total: '11600', count: 5 },
-          { category: { name: 'Equipamentos', color: '#eab308' }, total: '3800', count: 2 },
-          { category: { name: 'Combustível', color: '#06b6d4' }, total: '1950', count: 3 },
-          { category: { name: 'Alimentação', color: '#f59e0b' }, total: '1440', count: 4 },
-        ]);
-        setLoading(false);
-        return;
-      }
-      const [cfRes, catRes] = await Promise.all([
-        reportService.cashflow(6),
-        reportService.byCategory({ type: 'despesa' }),
-      ]);
-      setCashflow(cfRes.data.cashflow);
-      setCategoryData(catRes.data.categories.slice(0, 5));
-    } catch {}
-    setLoading(false);
-  };
+  const { transactions, fetchAll, isLoading } = useTransactionStore();
 
   useEffect(() => {
-    fetchData();
+    fetchAll();
   }, []);
 
-  const hasData = cashflow.length > 0;
+  const cashflow = useMemo(() => {
+    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    
+    const months: Array<{
+      month: string;
+      receita: number;
+      despesa: number;
+      lucro: number;
+      rawMonth: number;
+      rawYear: number;
+    }> = [];
+
+    // Cria a grade vazia dos últimos 6 meses
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      months.push({
+        month: `${monthNames[d.getMonth()]}/${d.getFullYear().toString().slice(-2)}`,
+        receita: 0,
+        despesa: 0,
+        lucro: 0,
+        rawMonth: d.getMonth(),
+        rawYear: d.getFullYear()
+      });
+    }
+
+    // Preenche com as transações da store conectada ao Supabase
+    transactions.forEach(t => {
+      if (!t.date && !t.createdAt) return;
+      const d = new Date(t.date || t.createdAt);
+      
+      const target = months.find(m => m.rawMonth === d.getMonth() && m.rawYear === d.getFullYear());
+      
+      if (target) {
+        const val = Number(t.amount) || 0;
+        const tipo = String(t.type).toLowerCase();
+
+        if (tipo === 'receita' || tipo === 'revenue') target.receita += val;
+        else if (tipo === 'despesa' || tipo === 'expense') target.despesa += val;
+
+        target.lucro = target.receita - target.despesa;
+      }
+    });
+
+    return months;
+  }, [transactions]);
+
+  const categoryData = useMemo(() => {
+    const catMap = new Map();
+    const colors = ['#ef4444', '#f97316', '#eab308', '#06b6d4', '#8b5cf6'];
+
+    transactions.forEach(t => {
+      const tipo = String(t.type).toLowerCase();
+      if (tipo === 'despesa' || tipo === 'expense') {
+        const catName = t.category || (t as any).categoria || 'Geral';
+        if (!catMap.has(catName)) {
+          catMap.set(catName, { name: catName, total: 0, count: 0 });
+        }
+        catMap.get(catName).total += Number(t.amount) || 0;
+        catMap.get(catName).count += 1;
+      }
+    });
+
+    return Array.from(catMap.values())
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5)
+      .map((item, index) => ({
+        category: { name: item.name, color: colors[index % colors.length] },
+        total: String(item.total), 
+        count: item.count
+      }));
+  }, [transactions]);
+
+  const hasData = transactions.length > 0;
 
   const lineData = {
     labels: cashflow.map((c) => c.month),
@@ -104,7 +146,7 @@ export const ReportsScreen: React.FC = () => {
         <DFText variant="footnote" color={Colors.textSecondary}>Últimos 6 meses</DFText>
       </View>
 
-      {loading ? (
+      {isLoading ? (
         <View style={styles.loadingCenter}>
           <ActivityIndicator color={Colors.navy} size="large" />
         </View>
@@ -112,7 +154,7 @@ export const ReportsScreen: React.FC = () => {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchData} tintColor={Colors.navy} />}
+          refreshControl={<RefreshControl refreshing={isLoading} onRefresh={fetchAll} tintColor={Colors.navy} />}
         >
           {/* Period summary */}
           <View style={styles.summaryRow}>
@@ -214,7 +256,7 @@ export const ReportsScreen: React.FC = () => {
                 const maxVal = Math.max(...categoryData.map((c) => parseFloat(c.total)));
                 const pct = maxVal > 0 ? (parseFloat(item.total) / maxVal) * 100 : 0;
                 return (
-                  <View key={item.category_id || i} style={styles.catItem}>
+                  <View key={item.category?.name || i} style={styles.catItem}>
                     <View style={[styles.catDot, { backgroundColor: item.category?.color || Colors.gray }]} />
                     <View style={styles.catInfo}>
                       <View style={styles.catRow}>

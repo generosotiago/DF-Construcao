@@ -26,6 +26,7 @@ export interface Project {
   lucro?: number;
   percentual_orcamento?: number;
   createdAt: string;
+  transactions?: Transaction[]; // Campo opcional para carregar detalhes adicionais
 }
 
 export interface Category {
@@ -48,6 +49,7 @@ export interface Transaction {
   status: 'pendente' | 'pago' | 'cancelado' | 'atrasado';
   notes?: string;
   project_id?: string;
+  project_name?: string;
   category_id?: string;
   user_id: string;
   category?: Category;
@@ -61,15 +63,23 @@ export interface DashboardData {
     despesa: number;
     lucro: number;
     margem: string;
+    revenue?: number;   // Adicionado
+    expense?: number;   // Adicionado
+    profit?: number;    // Adicionado
   };
   lastMonth: {
     receita: number;
     despesa: number;
     lucro: number;
+    revenue?: number;   // Adicionado
+    expense?: number;   // Adicionado
+    profit?: number;    // Adicionado
   };
   growth: {
-    receita: string | null;
-    despesa: string | null;
+    receita: string;
+    despesa: string;
+    revenue?: string;   // Adicionado
+    expense?: string;   // Adicionado
   };
   activeProjects: number;
   recentTransactions: Transaction[];

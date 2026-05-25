@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { DFText } from '../common/DFText';
-import { Colors, Spacing, Radius } from '../../theme';
+import { Colors, Spacing } from '../../theme';
 import { Transaction } from '../../types';
 import { formatCurrency, formatDate, transactionStatusColor } from '../../utils/format';
 
@@ -12,19 +12,16 @@ interface TransactionItemProps {
   showProject?: boolean;
 }
 
+// Mapeia nomes textuais de categorias para os ícones equivalentes do Ionicons
 const categoryIconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
-  'hard-hat': 'construct-outline',
-  wallet: 'wallet-outline',
-  'clipboard-list': 'clipboard-outline',
-  'plus-circle': 'add-circle-outline',
-  package: 'cube-outline',
-  users: 'people-outline',
-  tool: 'build-outline',
-  truck: 'car-outline',
-  droplet: 'water-outline',
-  coffee: 'cafe-outline',
-  'file-text': 'document-text-outline',
-  'minus-circle': 'remove-circle-outline',
+  'Alvenaria': 'construct-outline',
+  'Fundação': 'build-outline',
+  'Reboco': 'brush-outline',
+  'Material': 'cube-outline',
+  'Mão de Obra': 'people-outline',
+  'Transporte': 'car-outline',
+  'Alimentação': 'cafe-outline',
+  'Geral': 'ellipse-outline',
 };
 
 export const TransactionItem: React.FC<TransactionItemProps> = ({
@@ -34,13 +31,14 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
 }) => {
   const isReceita = transaction.type === 'receita';
   const amountColor = isReceita ? Colors.success : Colors.danger;
-  const statusColor = transactionStatusColor[transaction.status] || Colors.gray;
+  
+  // Tratamento seguro do status para evitar quebras de cores
+  const currentStatus = (transaction.status || 'pago').toLowerCase();
+  const statusColor = (transactionStatusColor as any)[currentStatus] || Colors.gray;
 
-  const iconName = transaction.category?.icon
-    ? (categoryIconMap[transaction.category.icon] || 'ellipse-outline')
-    : isReceita
-    ? 'arrow-down-circle-outline'
-    : 'arrow-up-circle-outline';
+  // Resolve o ícone baseado no nome textual da categoria ou no tipo da transação
+  const categoryName = typeof transaction.category === 'string' ? transaction.category : 'Geral';
+  const iconName = categoryIconMap[categoryName] || (isReceita ? 'arrow-down-circle-outline' : 'arrow-up-circle-outline');
 
   const iconBg = isReceita ? Colors.successLight : Colors.dangerLight;
   const iconColor = isReceita ? Colors.success : Colors.danger;
@@ -57,25 +55,21 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
 
       <View style={styles.info}>
         <DFText variant="subheadline" weight="medium" color={Colors.textPrimary} numberOfLines={1}>
-          {transaction.description}
+          {transaction.description || 'Transação sem descrição'}
         </DFText>
         <View style={styles.metaRow}>
           <DFText variant="caption1" color={Colors.textTertiary}>
             {formatDate(transaction.date)}
           </DFText>
-          {transaction.category && (
-            <>
-              <View style={styles.dot} />
-              <DFText variant="caption1" color={Colors.textTertiary} numberOfLines={1}>
-                {transaction.category.name}
-              </DFText>
-            </>
-          )}
-          {showProject && transaction.project && (
+          <View style={styles.dot} />
+          <DFText variant="caption1" color={Colors.textTertiary} numberOfLines={1}>
+            {categoryName}
+          </DFText>
+          {showProject && transaction.project_id && (
             <>
               <View style={styles.dot} />
               <DFText variant="caption1" color={Colors.orange} numberOfLines={1}>
-                {transaction.project.name}
+                Obra #{transaction.project_id}
               </DFText>
             </>
           )}

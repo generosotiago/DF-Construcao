@@ -57,7 +57,6 @@ export const TransactionsScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Summary */}
       {!typeFilter && (
         <View style={styles.summaryRow}>
           <DFCard style={styles.summaryCard} padding={Spacing.md} shadow="sm">
@@ -67,6 +66,7 @@ export const TransactionsScreen: React.FC = () => {
               {formatCurrency(totalReceita, true)}
             </DFText>
           </DFCard>
+          
           <DFCard style={styles.summaryCard} padding={Spacing.md} shadow="sm">
             <View style={[styles.summaryDot, { backgroundColor: Colors.danger }]} />
             <DFText variant="caption2" color={Colors.textTertiary}>Despesas</DFText>
@@ -74,6 +74,7 @@ export const TransactionsScreen: React.FC = () => {
               {formatCurrency(totalDespesa, true)}
             </DFText>
           </DFCard>
+
           <DFCard style={styles.summaryCard} padding={Spacing.md} shadow="sm">
             <View style={[styles.summaryDot, { backgroundColor: Colors.navy }]} />
             <DFText variant="caption2" color={Colors.textTertiary}>Saldo</DFText>
@@ -110,16 +111,9 @@ export const TransactionsScreen: React.FC = () => {
         ItemSeparatorComponent={renderSeparator}
         contentContainerStyle={styles.list}
         refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={() => fetchAll()} tintColor={Colors.navy} />
+          <RefreshControl refreshing={isLoading} onRefresh={() => fetchAll({ type: typeFilter || undefined })} tintColor={Colors.navy} />
         }
         showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          transactions.length > 0 ? (
-            <DFCard padding={0} shadow="sm" style={styles.txCard}>
-              {null}
-            </DFCard>
-          ) : null
-        }
         ListEmptyComponent={
           !isLoading ? (
             <DFEmptyState
@@ -191,9 +185,6 @@ const styles = StyleSheet.create({
   list: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.xl,
-  },
-  txCard: {
-    marginBottom: Spacing.sm,
   },
   separator: {
     height: 1,

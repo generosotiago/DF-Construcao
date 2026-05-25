@@ -25,7 +25,11 @@ const STATUS_FILTERS = [
 ];
 
 const ProjectCard: React.FC<{ project: Project; onPress: () => void }> = ({ project, onPress }) => {
-  const statusColor = projectStatusColor[project.status] || Colors.gray;
+  // Garantindo a tipagem correta para evitar erros no map
+  const safeStatus = project.status as keyof typeof projectStatusColor;
+  const safeType = project.type as keyof typeof projectTypeLabel;
+
+  const statusColor = projectStatusColor[safeStatus] || Colors.gray;
   const pct = project.budget > 0 ? Math.min(((project.total_despesa || 0) / project.budget) * 100, 100) : 0;
 
   return (
@@ -40,13 +44,13 @@ const ProjectCard: React.FC<{ project: Project; onPress: () => void }> = ({ proj
           </DFText>
         </View>
         <DFBadge
-          label={projectStatusLabel[project.status] || project.status}
+          label={projectStatusLabel[safeStatus] || project.status}
           color={statusColor}
         />
       </View>
 
       <DFText variant="caption1" color={Colors.textTertiary} style={styles.typeTag}>
-        {projectTypeLabel[project.type] || project.type}
+        {projectTypeLabel[safeType] || project.type}
       </DFText>
 
       {/* Budget progress */}
@@ -142,7 +146,7 @@ export const ProjectsScreen: React.FC = () => {
 
       <FlatList
         data={projects}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => item.id ? String(item.id) : String(index)}
         renderItem={({ item }) => (
           <ProjectCard
             project={item}

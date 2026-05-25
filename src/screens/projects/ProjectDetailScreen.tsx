@@ -32,7 +32,11 @@ export const ProjectDetailScreen: React.FC = () => {
     );
   }
 
-  const statusColor = projectStatusColor[project.status] || Colors.gray;
+  // Garantindo ao TypeScript que project.status é uma chave válida
+  const safeStatus = project.status as keyof typeof projectStatusColor;
+  const safeType = project.type as keyof typeof projectTypeLabel;
+
+  const statusColor = projectStatusColor[safeStatus] || Colors.gray;
   const pct = project.budget > 0 ? Math.min(((project.total_despesa || 0) / project.budget) * 100, 100) : 0;
 
   return (
@@ -44,7 +48,7 @@ export const ProjectDetailScreen: React.FC = () => {
         <DFText variant="headline" weight="semibold" color={Colors.navy} style={{ flex: 1 }} numberOfLines={1}>
           {project.name}
         </DFText>
-        <DFBadge label={projectStatusLabel[project.status]} color={statusColor} />
+        <DFBadge label={projectStatusLabel[safeStatus] || 'Desconhecido'} color={statusColor} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
@@ -66,7 +70,7 @@ export const ProjectDetailScreen: React.FC = () => {
 
           <DFText variant="footnote" color={Colors.textSecondary}>Tipo de Obra</DFText>
           <DFText variant="subheadline" color={Colors.textPrimary} style={{ marginBottom: Spacing.md }}>
-            {projectTypeLabel[project.type]}
+            {projectTypeLabel[safeType] || project.type}
           </DFText>
 
           <View style={styles.datesRow}>
@@ -176,7 +180,7 @@ export const ProjectDetailScreen: React.FC = () => {
             </View>
           ) : (
             (project as any).transactions?.map((tx: any, i: number) => (
-              <View key={tx.id}>
+              <View key={tx.id ? String(tx.id) : String(i)}>
                 <TransactionItem transaction={tx} showProject={false} />
                 {i < (project as any).transactions.length - 1 && <View style={styles.separator} />}
               </View>
