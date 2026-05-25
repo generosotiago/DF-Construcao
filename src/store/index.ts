@@ -17,6 +17,7 @@ interface AuthState {
   loginWithGoogle: (token: string, user: User) => Promise<void>;
   logout: () => Promise<void>;
   loadFromStorage: () => Promise<void>;
+  updateUser: (updates: Partial<Pick<User, 'name' | 'email'>>) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -69,6 +70,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     useProjectStore.setState({ projects: [], selectedProject: null });
     useTransactionStore.setState({ transactions: [], total: 0 });
     useDashboardStore.setState({ data: null });
+  },
+
+  updateUser: async (updates) => {
+    const current = useAuthStore.getState().user;
+    if (!current) return;
+    const updated: User = { ...current, ...updates };
+    await storage.setItem('df_user', JSON.stringify(updated));
+    set({ user: updated });
   },
 }));
 

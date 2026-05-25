@@ -5,6 +5,11 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,12 +26,13 @@ interface SettingItemProps {
   onPress?: () => void;
   showArrow?: boolean;
   destructive?: boolean;
+  rightElement?: React.ReactNode;
 }
 
 const SettingItem: React.FC<SettingItemProps> = ({
-  icon, iconBg, iconColor, label, value, onPress, showArrow = true, destructive = false,
+  icon, iconBg, iconColor, label, value, onPress, showArrow = true, destructive = false, rightElement,
 }) => (
-  <TouchableOpacity style={styles.settingItem} onPress={onPress} activeOpacity={onPress ? 0.7 : 1}>
+  <TouchableOpacity style={styles.settingItem} onPress={onPress} activeOpacity={onPress ? 0.7 : 1} disabled={!onPress}>
     <View style={[styles.settingIcon, { backgroundColor: iconBg }]}>
       <Ionicons name={icon} size={16} color={iconColor} />
     </View>
@@ -40,12 +46,21 @@ const SettingItem: React.FC<SettingItemProps> = ({
         {value}
       </DFText>
     )}
-    {showArrow && <Ionicons name="chevron-forward" size={16} color={Colors.textDisabled} />}
+    {rightElement}
+    {showArrow && !rightElement && <Ionicons name="chevron-forward" size={16} color={Colors.textDisabled} />}
   </TouchableOpacity>
 );
 
 export const SettingsScreen: React.FC = () => {
-  const { user, logout } = useAuthStore();
+  const { user, logout, updateUser } = useAuthStore();
+
+  // Estados dos modais e preferências locais
+  const [editProfileVisible, setEditProfileVisible] = useState(false);
+  const [editName, setEditName] = useState(user?.name || '');
+  const [editEmail, setEditEmail] = useState(user?.email || '');
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const handleLogout = () => {
     Alert.alert(
@@ -55,6 +70,74 @@ export const SettingsScreen: React.FC = () => {
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Sair', style: 'destructive', onPress: logout },
       ]
+    );
+  };
+
+  const openEditProfile = () => {
+    setEditName(user?.name || '');
+    setEditEmail(user?.email || '');
+    setEditProfileVisible(true);
+  };
+
+  const saveProfile = async () => {
+    const trimmedName = editName.trim();
+    const trimmedEmail = editEmail.trim();
+
+    if (!trimmedName) {
+      Alert.alert('Nome inválido', 'O nome não pode ficar em branco.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      Alert.alert('Email inválido', 'Informe um email válido.');
+      return;
+    }
+
+    try {
+      setSavingProfile(true);
+      await updateUser({ name: trimmedName, email: trimmedEmail });
+      setEditProfileVisible(false);
+      Alert.alert('Sucesso', 'Perfil atualizado com sucesso.');
+    } catch (err: any) {
+      Alert.alert('Erro', err?.message || 'Não foi possível atualizar o perfil.');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleChangePassword = () => {
+    Alert.alert(
+      'Alterar Senha',
+      'A alteração de senha estará disponível em breve. Por enquanto, entre em contato com o administrador do sistema.',
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handleNotificationsToggle = (value: boolean) => {
+    setNotificationsEnabled(value);
+    Alert.alert(
+      'Notificações',
+      value
+        ? 'Notificações ativadas. Você receberá alertas sobre novas transações e atualizações.'
+        : 'Notificações desativadas.',
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handleTheme = () => {
+    Alert.alert(
+      'Tema',
+      'O tema escuro será adicionado em uma futura atualização. O app está usando o tema Claro.',
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handleAbout = () => {
+    Alert.alert(
+      'Sobre o App',
+      'DF Construções\nVersão 1.0.0\n\nAplicativo de gestão financeira de obras desenvolvido para a DF Construções de Jaraguá do Sul / SC.',
+      [{ text: 'OK' }]
     );
   };
 
@@ -131,7 +214,7 @@ export const SettingsScreen: React.FC = () => {
             iconBg={Colors.orangeLight}
             iconColor={Colors.orange}
             label="Editar Perfil"
-            onPress={() => {}}
+            onPress={openEditProfile}
           />
           <View style={styles.itemDivider} />
           <SettingItem
@@ -139,7 +222,7 @@ export const SettingsScreen: React.FC = () => {
             iconBg={Colors.infoLight}
             iconColor={Colors.info}
             label="Alterar Senha"
-            onPress={() => {}}
+            onPress={handleChangePassword}
           />
         </DFCard>
 
@@ -153,7 +236,15 @@ export const SettingsScreen: React.FC = () => {
             iconBg={Colors.warningLight}
             iconColor={Colors.warning}
             label="Notificações"
-            onPress={() => {}}
+            showArrow={false}
+            rightElement={
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={handleNotificationsToggle}
+                trackColor={{ false: Colors.grayBackground, true: Colors.orangeLight }}
+                thumbColor={notificationsEnabled ? Colors.orange : Colors.gray}
+              />
+            }
           />
           <View style={styles.itemDivider} />
           <SettingItem
@@ -162,7 +253,7 @@ export const SettingsScreen: React.FC = () => {
             iconColor={Colors.gray}
             label="Tema"
             value="Claro"
-            onPress={() => {}}
+            onPress={handleTheme}
           />
           <View style={styles.itemDivider} />
           <SettingItem
@@ -171,7 +262,7 @@ export const SettingsScreen: React.FC = () => {
             iconColor={Colors.gray}
             label="Sobre o App"
             value="v1.0.0"
-            showArrow={false}
+            onPress={handleAbout}
           />
         </DFCard>
 
@@ -197,6 +288,80 @@ export const SettingsScreen: React.FC = () => {
           </DFText>
         </View>
       </ScrollView>
+
+      {/* Modal: Editar Perfil */}
+      <Modal
+        visible={editProfileVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEditProfileVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <DFText variant="headline" weight="bold" color={Colors.navy}>
+                Editar Perfil
+              </DFText>
+              <TouchableOpacity onPress={() => setEditProfileVisible(false)}>
+                <Ionicons name="close" size={24} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.field}>
+              <DFText variant="footnote" weight="semibold" color={Colors.textSecondary}>
+                Nome
+              </DFText>
+              <TextInput
+                style={styles.input}
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Seu nome"
+                placeholderTextColor={Colors.textDisabled}
+                autoCapitalize="words"
+              />
+            </View>
+
+            <View style={styles.field}>
+              <DFText variant="footnote" weight="semibold" color={Colors.textSecondary}>
+                Email
+              </DFText>
+              <TextInput
+                style={styles.input}
+                value={editEmail}
+                onChangeText={setEditEmail}
+                placeholder="seu@email.com"
+                placeholderTextColor={Colors.textDisabled}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setEditProfileVisible(false)}
+                disabled={savingProfile}
+              >
+                <DFText variant="subheadline" weight="semibold" color={Colors.textSecondary}>
+                  Cancelar
+                </DFText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton, savingProfile && { opacity: 0.6 }]}
+                onPress={saveProfile}
+                disabled={savingProfile}
+              >
+                <DFText variant="subheadline" weight="semibold" color={Colors.white}>
+                  {savingProfile ? 'Salvando...' : 'Salvar'}
+                </DFText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -262,5 +427,51 @@ const styles = StyleSheet.create({
   footer: {
     paddingVertical: Spacing.xl,
     gap: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.lg,
+  },
+  modalContent: {
+    backgroundColor: Colors.white,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    gap: Spacing.md,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  field: { gap: 6 },
+  input: {
+    borderWidth: 1,
+    borderColor: Colors.grayBackground,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: Colors.textPrimary,
+    backgroundColor: Colors.backgroundPrimary,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButton: {
+    backgroundColor: Colors.grayBackground,
+  },
+  saveButton: {
+    backgroundColor: Colors.orange,
   },
 });
