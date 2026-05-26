@@ -30,10 +30,50 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const token = await storage.getItem('df_token');
       const userStr = await storage.getItem('df_user');
-      if (token && userStr) {
-        set({ token, user: JSON.parse(userStr), isAuthenticated: true, isLoading: false });
-      } else {
+
+      if (!token || !userStr) {
         set({ isLoading: false });
+        return;
+      }
+
+      const cachedUser: User = JSON.parse(userStr);
+
+      // Valida no Supabase se o usuário ainda existe. Evita "logado como
+      // usuário fantasma" quando o registro foi removido ou os dados locais
+      // ficaram divergentes do banco.
+      try {
+        const { data, error } = await supabase
+          .from('usuarios')
+          .select('id, nome, email')
+          .eq('email', cachedUser.email)
+          .maybeSingle();
+
+        if (error) {
+          // Falha de rede: mantém sessão para não bloquear o app offline.
+          set({ token, user: cachedUser, isAuthenticated: true, isLoading: false });
+          return;
+        }
+
+        if (!data) {
+          // Usuário não existe mais no banco. Limpa a sessão.
+          await storage.removeItem('df_token');
+          await storage.removeItem('df_user');
+          set({ user: null, token: null, isAuthenticated: false, isLoading: false });
+          return;
+        }
+
+        // Sincroniza dados locais com o que está no banco
+        const syncedUser: User = {
+          ...cachedUser,
+          id: String(data.id ?? cachedUser.id),
+          name: data.nome ?? cachedUser.name,
+          email: data.email ?? cachedUser.email,
+        };
+        await storage.setItem('df_user', JSON.stringify(syncedUser));
+        set({ token, user: syncedUser, isAuthenticated: true, isLoading: false });
+      } catch {
+        // Erro de rede inesperado: mantém sessão para uso offline.
+        set({ token, user: cachedUser, isAuthenticated: true, isLoading: false });
       }
     } catch {
       set({ isLoading: false });
@@ -75,6 +115,22 @@ export const useAuthStore = create<AuthState>((set) => ({
   updateUser: async (updates) => {
     const current = useAuthStore.getState().user;
     if (!current) return;
+
+    // Sincroniza com Supabase usando o email atual como chave (assim
+    // mantém o vínculo mesmo que o email seja alterado).
+    const payload: Record<string, any> = {};
+    if (updates.name !== undefined) payload.nome = updates.name;
+    if (updates.email !== undefined) payload.email = updates.email;
+
+    if (Object.keys(payload).length > 0) {
+      const { error } = await supabase
+        .from('usuarios')
+        .update(payload)
+        .eq('email', current.email);
+
+      if (error) throw error;
+    }
+
     const updated: User = { ...current, ...updates };
     await storage.setItem('df_user', JSON.stringify(updated));
     set({ user: updated });

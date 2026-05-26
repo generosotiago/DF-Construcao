@@ -57,7 +57,6 @@ export const SettingsScreen: React.FC = () => {
   // Estados dos modais e preferências locais
   const [editProfileVisible, setEditProfileVisible] = useState(false);
   const [editName, setEditName] = useState(user?.name || '');
-  const [editEmail, setEditEmail] = useState(user?.email || '');
   const [savingProfile, setSavingProfile] = useState(false);
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -75,28 +74,20 @@ export const SettingsScreen: React.FC = () => {
 
   const openEditProfile = () => {
     setEditName(user?.name || '');
-    setEditEmail(user?.email || '');
     setEditProfileVisible(true);
   };
 
   const saveProfile = async () => {
     const trimmedName = editName.trim();
-    const trimmedEmail = editEmail.trim();
 
     if (!trimmedName) {
       Alert.alert('Nome inválido', 'O nome não pode ficar em branco.');
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedEmail)) {
-      Alert.alert('Email inválido', 'Informe um email válido.');
-      return;
-    }
-
     try {
       setSavingProfile(true);
-      await updateUser({ name: trimmedName, email: trimmedEmail });
+      await updateUser({ name: trimmedName });
       setEditProfileVisible(false);
       Alert.alert('Sucesso', 'Perfil atualizado com sucesso.');
     } catch (err: any) {
@@ -328,15 +319,14 @@ export const SettingsScreen: React.FC = () => {
               <DFText variant="footnote" weight="semibold" color={Colors.textSecondary}>
                 Email
               </DFText>
-              <TextInput
-                style={styles.input}
-                value={editEmail}
-                onChangeText={setEditEmail}
-                placeholder="seu@email.com"
-                placeholderTextColor={Colors.textDisabled}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
+              <View style={[styles.input, styles.inputDisabled]}>
+                <DFText variant="subheadline" color={Colors.textSecondary}>
+                  {user?.email}
+                </DFText>
+              </View>
+              <DFText variant="caption2" color={Colors.textTertiary}>
+                O email não pode ser alterado por aqui.
+              </DFText>
             </View>
 
             <View style={styles.modalActions}>
@@ -455,6 +445,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.textPrimary,
     backgroundColor: Colors.backgroundPrimary,
+  },
+  inputDisabled: {
+    justifyContent: 'center',
   },
   modalActions: {
     flexDirection: 'row',

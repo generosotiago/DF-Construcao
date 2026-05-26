@@ -15,6 +15,7 @@ import { DFText, DFButton, DFInput } from '../../components/common';
 import { Colors, Spacing, Radius } from '../../theme';
 import { useAuthStore } from '../../store';
 import { Ionicons } from '@expo/vector-icons';
+import { storage } from '../../utils/storage';
 
 // Biblioteca para criptografar a senha no dispositivo
 import CryptoJS from 'crypto-js';
@@ -295,7 +296,36 @@ export const LoginScreen: React.FC = () => {
 
           {/* Footer */}
           <View style={styles.footer}>
-            <DFText variant="caption1" color={Colors.textTertiary} center>
+            <TouchableOpacity
+              onPress={() => {
+                Alert.alert(
+                  'Resetar sessão',
+                  'Isso vai apagar os dados de sessão salvos neste dispositivo. Use apenas se o app estiver travado em loop de login.',
+                  [
+                    { text: 'Cancelar', style: 'cancel' },
+                    {
+                      text: 'Resetar',
+                      style: 'destructive',
+                      onPress: async () => {
+                        await storage.removeItem('df_token');
+                        await storage.removeItem('df_user');
+                        setEmail('');
+                        setPassword('');
+                        setNome('');
+                        setErrors({});
+                        Alert.alert('Sessão resetada', 'Dados locais apagados. Faça login novamente.');
+                      },
+                    },
+                  ]
+                );
+              }}
+              style={{ paddingVertical: 6 }}
+            >
+              <DFText variant="caption2" color={Colors.textTertiary} center>
+                Está com problemas? Resetar sessão
+              </DFText>
+            </TouchableOpacity>
+            <DFText variant="caption1" color={Colors.textTertiary} center style={{ marginTop: 6 }}>
               Estruturas Fortes, Construção Confiável.
             </DFText>
             <DFText variant="caption2" color={Colors.textDisabled} center style={{ marginTop: 4 }}>
